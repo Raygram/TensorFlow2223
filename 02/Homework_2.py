@@ -98,7 +98,7 @@ class MLP(object):
 
 
 
-layers = [(50,ReLU,ReLU_derivative),(90,ReLU,ReLU_derivative),(1,liner,linar_derivation)]
+layers = [(50,ReLU,ReLU_derivative),(90,ReLU,ReLU_derivative),(1,linar,linar_derivation)]
 m = MLP(1,layers)
 
 
