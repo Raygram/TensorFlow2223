@@ -10,59 +10,61 @@ t_vals = np.array(t)
 plt.scatter(x_vals,t)
 # plt.show()
 
-
+# Activation Functions
 def ReLU(x):
     return np.maximum(0,x)
 
 def ReLU_derivative(x):
-    # CURRENTLY LINEAR. TURN INTO BOOLEAN
     return (x>0).astype(np.float64)
 
-def mse(target, output): 
-    return np.mean((target -output) ** 2)
 
-
-def mse_derivative(target, output):
-    return output - target
-
-def liner(x):
-
+def linear(x):
     return x
 
-def linar_derivation(x):
+def linear_derivative(x):
     return 1
+
+# Loss Functions
+def mse(target, prediction): 
+    return np.mean((target - prediction) ** 2)
+
+def mse_derivative(target, prediction):
+    return prediction - target
+
+
+
+
 
 class Layer():
     def __init__(self, n_inputs, n_units, act_func = ReLU, der_act_func = ReLU_derivative, learning_rate = 0.002, variance = 0.1) -> None:
-        
-        self.weights = np.random.normal(scale = variance, size = (n_inputs + 1,n_units))
-
+        # initialise random weights with variance to control data complexity
+        self.weights = np.random.normal(scale = variance, size = (n_inputs + 1,n_units)) # shape is add one row to for the biases
+        # set attributes
         self.act_func = act_func
         self.der_act_func = der_act_func
-        self.lear = learning_rate
-
+        self.lr = learning_rate
+        # dummy variables
         self.layer_input = None
         self.layer_preactivation = None
         self.layer_activation = None
 
-
-    def __call__(self, inputs:np.array) :
-        self.layer_input = np.insert(inputs,0,1) # bias in the weights
-
-        self.layer_preactivation = self.layer_input.T @ self.weights
-        self.layer_activation = self.act_func(self.layer_preactivation)
+    # Forward Step 
+    def __call__(self, inputs:np.array) :        # defined in __call__ function, since it is faster 
+        self.layer_input = np.insert(inputs,0,1) # insert a 1 since bias is included in weight matrix
+        self.layer_preactivation = self.layer_input.T @ self.weights    # transpose input and mulptiply by weight matrix
+        self.layer_activation = self.act_func(self.layer_preactivation) # apply activation function 
         return self.layer_activation
 
     def backward_step(self, delta):
-
+        # get gradient by multiplying derivative of activation function with delta 
         grad = self.der_act_func(self.layer_preactivation) * delta
-
+        # get gradient of weights by multiplying correctly shaped input with gradient
         grad_weights = self.layer_input.reshape(-1,1) * grad
-
+        # update delta by taking sum of weights multiplied with the gradient
         delta = (self.weights * grad).sum(axis=1)
-        delta = np.delete(delta,0) # remove bias from weights
-
-        self.weights -= grad_weights * self.lear
+        delta = np.delete(delta,0) # remove bias entry from delta
+        # update weights
+        self.weights -= grad_weights * self.lr
 
         return delta
 
@@ -71,52 +73,54 @@ class Layer():
 class MLP(object):
     def __init__ (self, n_inputs, layers : list ,lr = 0.0002):
         
-        self.layer_list = []
-        self.n_inputs = n_inputs
+        self.layer_list = []        # keeping track of layers
+        self.n_inputs = n_inputs    
 
-        last = n_inputs
-        for n_units, act_func, dev_act_func in layers:
+        last = n_inputs             # get number of inputs from previous layer
 
+        # iterate over all layer-tuples which consist of n_units, an activation function and its derivative
+        for n_units, act_func, der_act_func in layers:
+            # add the corersponding layers to list
             self.layer_list.append(
-                Layer(last,n_units,act_func,dev_act_func,learning_rate=lr)
+                Layer(n_inputs=last, n_units=n_units, act_func=act_func, der_act_func=der_act_func, learning_rate=lr)
             )
-            last = n_units
+            last = n_units # get next layers inputs by taking this layers outputs
 
     def __call__(self, x):
+        # iterate over layers and call forward pass their outputs recursively to next layer in list
+        for layer in self.layer_list:                                           
+            x = layer(x)    # layer(x) returns the activation of layer for input x
         
-        for layer in self.layer_list:
-            x = layer(x)
-
-        return x
+        return x    # last x obtained is end result
 
     def backward(self,delta):
-
+        # go through layer list backwards
         for layer in reversed(self.layer_list):
-            delta = layer.backward_step(delta)
+            delta = layer.backward_step(delta)  # applay backward step reusing previous delta
 
         
 
 
-
-layers = [(50,ReLU,ReLU_derivative),(90,ReLU,ReLU_derivative),(1,linar,linar_derivation)]
+# example MLP structure
+layers = [(50,ReLU,ReLU_derivative),(90,ReLU,ReLU_derivative),(1,linear,linear_derivative)]
 m = MLP(1,layers)
 
 
 
-def step(m, x_vals, y_vals,loss,dev_loss):
+def step(m, x_vals, y_vals,loss,der_loss):
     
     mse = []
-
+    # iterate over targets and predictions
     for x,y in zip(x_vals,y_vals):
 
-        pred = m(x.reshape(1,1))
-        mse.append(loss(pred,y))
+        pred = m(x.reshape(1,1))    # get prediction
+        mse.append(loss(pred,y))    # get loss (calculated by mse)
 
-        delta = dev_loss(y,pred)
+        delta = der_loss(y,pred)    # derivative of loss function applied to target and prediction 
 
-        m.backward(delta)
+        m.backward(delta)           # backpropagate
 
-    return np.mean(mse)
+    return np.mean(mse)             # get the mean of the squared errors
 
 learning = []
 for i in range(10000):
