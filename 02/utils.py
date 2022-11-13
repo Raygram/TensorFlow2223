@@ -2,43 +2,41 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 
-x_vals = np.random.uniform(low=0,high=1,size=100)
-print(x_vals.shape)
-t = [i**3 - i**2 for i in x_vals]
-t_vals = np.array(t)
 
-plt.scatter(x_vals,t)
-# plt.show()
-
-# Activation Functions
 def ReLU(x):
-    return np.maximum(0,x)
+    return np.maximum(0,x).astype(np.float64)
 
 def ReLU_derivative(x):
     return (x>0).astype(np.float64)
 
 
 def linear(x):
-    return x
+    return x.astype(np.float64)
+
+def sigmoid(x):
+    return 1 / (1 + np.exp(-x))
+
+def sigmoid_der(x):
+    s = sigmoid(x)
+    return s * (1-s)
 
 def linear_derivative(x):
-    return 1
+    return np.ones(x.shape,dtype=np.float64)
 
 # Loss Functions
 def mse(target, prediction): 
-    return np.mean((target - prediction) ** 2)
+    return np.mean((target - prediction) ** 2).astype(np.float64)
 
 def mse_derivative(target, prediction):
-    return prediction - target
-
+    return (prediction - target).astype(np.float64)
 
 
 
 
 class Layer():
-    def __init__(self, n_inputs, n_units, act_func = ReLU, der_act_func = ReLU_derivative, learning_rate = 0.002, variance = 0.1) -> None:
+    def __init__(self, n_inputs, n_units, act_func = ReLU, der_act_func = ReLU_derivative, learning_rate = 0.002, variance = 0.25) -> None:
         # initialise random weights with variance to control data complexity
-        self.weights = np.random.normal(scale = variance, size = (n_inputs + 1,n_units)) # shape is add one row to for the biases
+        self.weights = np.random.normal(scale = variance, size = (n_inputs + 1,n_units)).astype(np.float64) # shape is add one row to for the biases
         # set attributes
         self.act_func = act_func
         self.der_act_func = der_act_func
@@ -47,6 +45,7 @@ class Layer():
         self.layer_input = None
         self.layer_preactivation = None
         self.layer_activation = None
+
 
     # Forward Step 
     def __call__(self, inputs:np.array) :        # defined in __call__ function, since it is faster 
@@ -63,15 +62,18 @@ class Layer():
         # update delta by taking sum of weights multiplied with the gradient
         delta = (self.weights * grad).sum(axis=1)
         delta = np.delete(delta,0) # remove bias entry from delta
+        
+      
         # update weights
         self.weights -= grad_weights * self.lr
+
 
         return delta
 
 
 
 class MLP(object):
-    def __init__ (self, n_inputs, layers : list ,lr = 0.0002):
+    def __init__ (self, n_inputs, layers : list ,lr = 0.0002,variance = 0.25):
         
         self.layer_list = []        # keeping track of layers
         self.n_inputs = n_inputs    
@@ -82,7 +84,7 @@ class MLP(object):
         for n_units, act_func, der_act_func in layers:
             # add the corersponding layers to list
             self.layer_list.append(
-                Layer(n_inputs=last, n_units=n_units, act_func=act_func, der_act_func=der_act_func, learning_rate=lr)
+                Layer(n_inputs=last, n_units=n_units, act_func=act_func, der_act_func=der_act_func, learning_rate=lr,variance=variance)
             )
             last = n_units # get next layers inputs by taking this layers outputs
 
@@ -98,20 +100,18 @@ class MLP(object):
         for layer in reversed(self.layer_list):
             delta = layer.backward_step(delta)  # applay backward step reusing previous delta
 
+
+    def update(self):
+        for layer in self.layer_list:
+            layer.update_batch()
         
-
-
-# example MLP structure
-layers = [(50,ReLU,ReLU_derivative),(90,ReLU,ReLU_derivative),(1,linear,linear_derivative)]
-m = MLP(1,layers)
-
 
 
 def step(m, x_vals, y_vals,loss,der_loss):
     
     mse = []
     # iterate over targets and predictions
-    for x,y in zip(x_vals,y_vals):
+    for i,(x,y) in enumerate(zip(x_vals,y_vals)):
 
         pred = m(x.reshape(1,1))    # get prediction
         mse.append(loss(pred,y))    # get loss (calculated by mse)
@@ -122,11 +122,3 @@ def step(m, x_vals, y_vals,loss,der_loss):
 
     return np.mean(mse)             # get the mean of the squared errors
 
-learning = []
-for i in range(10000):
-    learning.append( step(m,x_vals,t_vals,mse,mse_derivative))
-    
-plt.scatter(x_vals,[m(x.reshape(1,1)) for x in x_vals])
-# plt.plot(learning[10: ])
-plt.show()
-print(learning)
