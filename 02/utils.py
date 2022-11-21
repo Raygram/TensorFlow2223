@@ -2,23 +2,14 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 
-
 def ReLU(x):
     return np.maximum(0,x).astype(np.float64)
 
 def ReLU_derivative(x):
     return (x>0).astype(np.float64)
 
-
 def linear(x):
     return x.astype(np.float64)
-
-def sigmoid(x):
-    return 1 / (1 + np.exp(-x))
-
-def sigmoid_der(x):
-    s = sigmoid(x)
-    return s * (1-s)
 
 def linear_derivative(x):
     return np.ones(x.shape,dtype=np.float64)
@@ -63,7 +54,6 @@ class Layer():
         delta = (self.weights * grad).sum(axis=1)
         delta = np.delete(delta,0) # remove bias entry from delta
         
-      
         # update weights
         self.weights -= grad_weights * self.lr
 
@@ -100,15 +90,10 @@ class MLP(object):
         for layer in reversed(self.layer_list):
             delta = layer.backward_step(delta)  # applay backward step reusing previous delta
 
-
-    def update(self):
-        for layer in self.layer_list:
-            layer.update_batch()
         
 
 
 def step(m, x_vals, y_vals,loss,der_loss):
-    
     mse = []
     # iterate over targets and predictions
     for i,(x,y) in enumerate(zip(x_vals,y_vals)):
